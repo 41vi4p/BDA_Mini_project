@@ -1,0 +1,156 @@
+version: '3.8'
+
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    hostname: namenode
+    restart: unless-stopped
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+      - ./household_power_consumption.csv:/data/household_power_consumption.csv:ro
+      - ./mapreduce:/mapreduce:ro
+    environment:
+      - CLUSTER_NAME=energy-analytics
+    env_file:
+      - ./hadoop.env
+    networks:
+      - energy-net
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    hostname: datanode
+    restart: unless-stopped
+    ports:
+      - "9864:9864"
+    volumes:
+      - hadoop_datanode:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - energy-net
+
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    hostname: resourcemanager
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - energy-net
+
+  nodemanager:
+    build:
+      context: ./nodemanager
+    container_name: nodemanager
+    hostname: nodemanager
+    restart: unless-stopped
+    volumes:
+      - ./mapreduce:/mapreduce:ro
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088"
+    env_file:
+      - ./hadoop.env
+    networks:
+      - energy-net
+
+  historyserver:
+    image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
+    container_name: historyserver
+    hostname: historyserver
+    restart: unless-stopped
+    ports:
+      - "8188:8188"
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088"
+    volumes:
+      - hadoop_historyserver:/hadoop/yarn/timeline
+    env_file:
+      - ./hadoop.env
+    networks:
+      - energy-net
+
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb
+    hostname: mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - energy-net
+
+  mongo-express:
+    image: mongo-express:1.0.2-20
+    container_name: mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+    depends_on:
+      - mongodb
+    networks:
+      - energy-net
+
+  pipeline:
+    build:
+      context: ./pipeline
+    container_name: pipeline
+    depends_on:
+      - namenode
+      - datanode
+      - resourcemanager
+      - nodemanager
+      - mongodb
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NAMENODE_HOST=namenode
+      - MONGO_URI=mongodb://mongodb:27017/
+      - MONGO_DB=energy_db
+    networks:
+      - energy-net
+    restart: on-failure
+
+  streamlit:
+    build:
+      context: ./streamlit
+    container_name: streamlit
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/
+      - MONGO_DB=energy_db
+      - NAMENODE_HOST=namenode
+    networks:
+      - energy-net
+
+volumes:
+  hadoop_namenode:
+  hadoop_datanode:
+  hadoop_historyserver:
+  mongodb_data:
+
+networks:
+  energy-net:
+    driver: bridge
