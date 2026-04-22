@@ -12,6 +12,8 @@ services:
     volumes:
       - hadoop_namenode:/hadoop/dfs/name
       - ./household_power_consumption.csv:/data/household_power_consumption.csv:ro
+      - ./small.csv:/data/small.csv:ro
+      - ./tiny.csv:/data/tiny.csv:ro
       - ./mapreduce:/mapreduce:ro
     environment:
       - CLUSTER_NAME=energy-analytics
@@ -106,42 +108,6 @@ services:
       ME_CONFIG_BASICAUTH_PASSWORD: admin123
     depends_on:
       - mongodb
-    networks:
-      - energy-net
-
-  pipeline:
-    build:
-      context: ./pipeline
-    container_name: pipeline
-    depends_on:
-      - namenode
-      - datanode
-      - resourcemanager
-      - nodemanager
-      - mongodb
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - NAMENODE_HOST=namenode
-      - MONGO_URI=mongodb://mongodb:27017/
-      - MONGO_DB=energy_db
-    networks:
-      - energy-net
-    restart: on-failure
-
-  streamlit:
-    build:
-      context: ./streamlit
-    container_name: streamlit
-    restart: unless-stopped
-    ports:
-      - "8501:8501"
-    depends_on:
-      - mongodb
-    environment:
-      - MONGO_URI=mongodb://mongodb:27017/
-      - MONGO_DB=energy_db
-      - NAMENODE_HOST=namenode
     networks:
       - energy-net
 

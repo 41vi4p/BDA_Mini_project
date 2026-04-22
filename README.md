@@ -1,7 +1,7 @@
 # ⚡ Real-time Energy Consumption Analysis
 **Big Data Analytics Mini Project**
 
-Analyses ~1 million rows of household power consumption data using Apache Hadoop MapReduce, stores results in MongoDB, and visualises everything in a Streamlit dashboard — all running in Docker.
+Analyses ~1 million rows of household power consumption data using Apache Hadoop MapReduce and stores results in MongoDB — all running in Docker.
 
 ---
 
@@ -22,9 +22,6 @@ household_power_consumption.csv
         │
         ▼
     MongoDB :27017
-        │
-        ▼
-  Streamlit Dashboard :8501
 ```
 
 ## Quick Start
@@ -43,19 +40,10 @@ docker logs -f pipeline   # watch MapReduce progress
 
 | Service | URL |
 |---------|-----|
-| Streamlit Dashboard | http://localhost:8501 |
 | Hadoop NameNode UI  | http://localhost:9870 |
 | YARN ResourceManager| http://localhost:8088 |
 | Job History Server  | http://localhost:8188 |
 | Mongo Express       | http://localhost:8081 (admin/admin123) |
-
-## Dashboard Pages
-
-1. **Home** — system status, dataset overview, KPIs
-2. **Dashboard** — daily trend, hourly patterns, monthly bars
-3. **Time Analysis** — day-of-week heatmap, rolling stats, year-over-year
-4. **Sub-Metering** — kitchen/laundry/HVAC breakdown, correlation
-5. **Reports** — tables, statistics, CSV export
 
 ## Dataset
 

@@ -19,7 +19,7 @@ echo ""
 echo "Pulling Docker images..."
 docker compose pull --quiet
 
-echo "Building pipeline and streamlit images..."
+echo "Building pipeline image..."
 docker compose build --quiet
 
 echo ""
@@ -29,24 +29,21 @@ docker compose up -d
 echo ""
 echo "========================================================"
 echo "  Services are starting. URLs:"
-echo "  ⚡ Streamlit Dashboard  → http://localhost:8501"
 echo "  🐘 Hadoop NameNode UI   → http://localhost:9870"
 echo "  🧶 YARN ResourceManager → http://localhost:8088"
 echo "  📦 Mongo Express        → http://localhost:8081"
 echo "     (login: admin / admin123)"
 echo "========================================================"
 echo ""
-echo "Pipeline logs (MapReduce progress):"
-echo "  docker logs -f pipeline"
+echo "Installing dependencies..."
+pip install -r pipeline/requirements.txt
+
 echo ""
+echo "Running pipeline..."
+MONGO_URI=mongodb://localhost:27017/ NAMENODE_HOST=localhost python3 pipeline/pipeline.py
+
+echo ""
+echo "Pipeline logs will be displayed in the terminal."
 echo "To stop everything:"
 echo "  docker compose down"
-echo ""
-
-# Optionally tail pipeline logs
-read -p "Follow pipeline logs now? [y/N] " choice
-if [[ "$choice" =~ ^[Yy]$ ]]; then
-    echo "Waiting for pipeline container to start..."
-    sleep 5
-    docker logs -f pipeline
-fi
+echo "  pkill -f 'python3 pipeline/pipeline.py'"

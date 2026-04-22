@@ -9,10 +9,10 @@ import sys
 import time
 import requests
 import pymongo
-import docker
+import subprocess
 
-NAMENODE_HOST = os.environ.get('NAMENODE_HOST', 'namenode')
-MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://mongodb:27017/')
+NAMENODE_HOST = os.environ.get('NAMENODE_HOST', 'localhost')
+MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
 MONGO_DB = os.environ.get('MONGO_DB', 'energy_db')
 
 STREAMING_JAR = "/opt/hadoop-3.2.1/share/hadoop/tools/lib/hadoop-streaming-3.2.1.jar"
@@ -49,7 +49,7 @@ def wait_for_yarn(retries=60, delay=10):
     for i in range(retries):
         try:
             r = requests.get(
-                "http://resourcemanager:8088/ws/v1/cluster/info",
+                f"http://{NAMENODE_HOST}:8088/ws/v1/cluster/info",
                 timeout=5
             )
             if r.status_code == 200:
@@ -79,29 +79,27 @@ def wait_for_mongo(retries=30, delay=5):
 
 # ── Docker exec helpers ───────────────────────────────────────────────────────
 
-def exec_namenode(docker_client, cmd):
-    container = docker_client.containers.get('namenode')
-    result = container.exec_run(['bash', '-c', cmd], demux=True)
-    stdout = result.output[0].decode('utf-8', errors='replace') if result.output[0] else ''
-    stderr = result.output[1].decode('utf-8', errors='replace') if result.output[1] else ''
-    return result.exit_code, stdout, stderr
+def exec_namenode(cmd):
+    result = subprocess.run(['docker', 'exec', 'namenode', 'bash', '-c', cmd], 
+                           capture_output=True, text=True)
+    return result.returncode, result.stdout, result.stderr
 
 
 # ── HDFS setup ────────────────────────────────────────────────────────────────
 
-def setup_hdfs(dc):
+def setup_hdfs():
     log("Creating HDFS directories...")
-    exec_namenode(dc, "hdfs dfs -mkdir -p /user/energy/input /user/energy/output")
+    exec_namenode("hdfs dfs -mkdir -p /user/energy/input /user/energy/output")
 
 
-def upload_csv(dc):
-    code, out, _ = exec_namenode(dc, f"hdfs dfs -test -e {HDFS_INPUT} && echo EXISTS")
+def upload_csv():
+    code, out, _ = exec_namenode("hdfs dfs -test -e /user/energy/input/household_power_consumption.csv && echo EXISTS")
     if 'EXISTS' in out:
         log("CSV already in HDFS, skipping upload.")
         return
 
     log("Uploading CSV to HDFS (48 MB — may take a minute)...")
-    code, out, err = exec_namenode(dc, f"hdfs dfs -put {LOCAL_CSV} {HDFS_INPUT}")
+    code, out, err = exec_namenode("hdfs dfs -put /data/household_power_consumption.csv /user/energy/input/household_power_consumption.csv")
     if code != 0:
         log(f"Upload failed:\n{err}")
         raise RuntimeError("HDFS upload failed")
@@ -110,9 +108,9 @@ def upload_csv(dc):
 
 # ── MapReduce jobs ────────────────────────────────────────────────────────────
 
-def run_job(dc, name, mapper, reducer, output_dir):
+def run_job(name, mapper, reducer, output_dir):
     out_path = f"/user/energy/output/{output_dir}"
-    exec_namenode(dc, f"hdfs dfs -rm -r -f {out_path}")
+    exec_namenode(f"hdfs dfs -rm -r -f {out_path}")
 
     cmd = (
         f"hadoop jar {STREAMING_JAR} "
@@ -121,10 +119,10 @@ def run_job(dc, name, mapper, reducer, output_dir):
         f"-reducer '/usr/bin/python3 {reducer}' "
         f"-input {HDFS_INPUT} "
         f"-output {out_path} "
-        f"-numReduceTasks 4"
+        f"-numReduceTasks 1"
     )
     log(f"Running MapReduce job: {name} ...")
-    code, out, err = exec_namenode(dc, cmd)
+    code, out, err = exec_namenode(cmd)
     if code == 0:
         log(f"  {name} — DONE")
         return True
@@ -132,8 +130,8 @@ def run_job(dc, name, mapper, reducer, output_dir):
     return False
 
 
-def read_output(dc, output_dir):
-    code, out, err = exec_namenode(dc, f"hdfs dfs -cat /user/energy/output/{output_dir}/part-*")
+def read_output(output_dir):
+    code, out, err = exec_namenode(f"hdfs dfs -cat /user/energy/output/{output_dir}/part-*")
     if code == 0:
         return out
     log(f"  Could not read {output_dir}: {err}")
@@ -257,14 +255,12 @@ def main():
         log("Pipeline already completed. Nothing to do.")
         return
 
-    dc = docker.from_env()
-
     db['pipeline_status'].delete_many({})
     db['pipeline_status'].insert_one({'status': 'running', 'started_at': time.time()})
 
     try:
-        setup_hdfs(dc)
-        upload_csv(dc)
+        setup_hdfs()
+        upload_csv()
 
         if not wait_for_yarn():
             sys.exit("YARN never became available.")
@@ -284,9 +280,9 @@ def main():
         }
 
         for name, mapper, reducer, out_dir in jobs:
-            ok = run_job(dc, name, mapper, reducer, out_dir)
+            ok = run_job(name, mapper, reducer, out_dir)
             if ok:
-                raw = read_output(dc, out_dir)
+                raw = read_output(out_dir)
                 parse_fn, col_name = parsers[out_dir]
                 records = parse_fn(raw)
                 store(db, col_name, records)
