@@ -30,10 +30,17 @@ household_power_consumption.csv
 ./run.sh
 ```
 
+`run.sh` now defaults to `tiny.csv`. To use another dataset:
+
+```bash
+DATA_FILE=small.csv ./run.sh
+```
+
 Or manually:
 ```bash
 docker compose up -d
-docker logs -f pipeline   # watch MapReduce progress
+python3 -m pip install -r pipeline/requirements.txt
+DATA_FILE=tiny.csv MONGO_URI=mongodb://localhost:27017/ NAMENODE_HOST=localhost python3 pipeline/pipeline.py
 ```
 
 ## Service URLs
@@ -47,7 +54,9 @@ docker logs -f pipeline   # watch MapReduce progress
 
 ## Dataset
 
-`household_power_consumption.csv` — UCI Household Power Consumption
+Default run dataset: `tiny.csv` (for quick testing).
+
+Main source dataset: `household_power_consumption.csv` — UCI Household Power Consumption
 ~1 M readings at 1-minute intervals, Dec 2006 – Dec 2008.
 
 Columns: Date, Time, Global_active_power (kW), Global_reactive_power (kW),

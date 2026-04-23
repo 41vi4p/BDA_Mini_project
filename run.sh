@@ -6,13 +6,17 @@ echo "  Real-time Energy Consumption Analysis"
 echo "  BDA Mini Project"
 echo "========================================================"
 
+# Default dataset can be overridden by setting DATA_FILE before running this script.
+DATA_FILE="${DATA_FILE:-tiny.csv}"
+
 # Verify dataset exists
-if [ ! -f "household_power_consumption.csv" ]; then
-    echo "ERROR: household_power_consumption.csv not found in $(pwd)"
+if [ ! -f "$DATA_FILE" ]; then
+    echo "ERROR: $DATA_FILE not found in $(pwd)"
     exit 1
 fi
 
-echo "Dataset found: $(wc -l < household_power_consumption.csv) rows"
+echo "Dataset file: $DATA_FILE"
+echo "Dataset found: $(wc -l < "$DATA_FILE") rows"
 echo ""
 
 # Pull images first (parallel)
@@ -40,7 +44,7 @@ pip install -r pipeline/requirements.txt
 
 echo ""
 echo "Running pipeline..."
-MONGO_URI=mongodb://localhost:27017/ NAMENODE_HOST=localhost python3 pipeline/pipeline.py
+DATA_FILE="$DATA_FILE" MONGO_URI=mongodb://localhost:27017/ NAMENODE_HOST=localhost python3 pipeline/pipeline.py
 
 echo ""
 echo "Pipeline logs will be displayed in the terminal."
