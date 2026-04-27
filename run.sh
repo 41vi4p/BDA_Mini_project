@@ -14,7 +14,7 @@ if [ ! -f "$DATA_FILE" ]; then
     echo "ERROR: $DATA_FILE not found in $(pwd)"
     exit 1
 fi
-
+#FORCE_RUN=1 DATA_FILE=tiny.csv MONGO_URI=mongodb://localhost:27017/ NAMENODE_HOST=localhost python3 pipeline.py
 echo "Dataset file: $DATA_FILE"
 echo "Dataset found: $(wc -l < "$DATA_FILE") rows"
 echo ""
@@ -45,6 +45,8 @@ pip install -r pipeline/requirements.txt
 echo ""
 echo "Running pipeline..."
 DATA_FILE="$DATA_FILE" MONGO_URI=mongodb://localhost:27017/ NAMENODE_HOST=localhost python3 pipeline/pipeline.py
+
+DATA_FILE="household_power_consumption.csv" MONGO_URI=mongodb://localhost:27017/ NAMENODE_HOST=localhost python3 pipeline/pipeline.py
 
 echo ""
 echo "Pipeline logs will be displayed in the terminal."
