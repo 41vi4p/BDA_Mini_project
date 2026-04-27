@@ -14,10 +14,12 @@ import subprocess
 NAMENODE_HOST = os.environ.get('NAMENODE_HOST', 'localhost')
 MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
 MONGO_DB = os.environ.get('MONGO_DB', 'energy_db')
+DATA_FILE = os.environ.get('DATA_FILE', 'tiny.csv')
+FORCE_RUN = os.environ.get('FORCE_RUN', '0') == '1'
 
 STREAMING_JAR = "/opt/hadoop-3.2.1/share/hadoop/tools/lib/hadoop-streaming-3.2.1.jar"
-HDFS_INPUT = "/user/energy/input/household_power_consumption.csv"
-LOCAL_CSV = "/data/household_power_consumption.csv"
+HDFS_INPUT = f"/user/energy/input/{DATA_FILE}"
+LOCAL_CSV = f"/data/{DATA_FILE}"
 
 
 def log(msg):
@@ -93,17 +95,17 @@ def setup_hdfs():
 
 
 def upload_csv():
-    code, out, _ = exec_namenode("hdfs dfs -test -e /user/energy/input/household_power_consumption.csv && echo EXISTS")
+    code, out, _ = exec_namenode(f"hdfs dfs -test -e {HDFS_INPUT} && echo EXISTS")
     if 'EXISTS' in out:
-        log("CSV already in HDFS, skipping upload.")
+        log(f"Input file already in HDFS ({HDFS_INPUT}), skipping upload.")
         return
 
-    log("Uploading CSV to HDFS (48 MB — may take a minute)...")
-    code, out, err = exec_namenode("hdfs dfs -put /data/household_power_consumption.csv /user/energy/input/household_power_consumption.csv")
+    log(f"Uploading input file to HDFS ({LOCAL_CSV} -> {HDFS_INPUT})...")
+    code, out, err = exec_namenode(f"hdfs dfs -put {LOCAL_CSV} {HDFS_INPUT}")
     if code != 0:
         log(f"Upload failed:\n{err}")
         raise RuntimeError("HDFS upload failed")
-    log("CSV uploaded successfully.")
+    log("Input file uploaded successfully.")
 
 
 # ── MapReduce jobs ────────────────────────────────────────────────────────────
@@ -242,6 +244,7 @@ def main():
     log("=" * 55)
     log("  Real-time Energy Consumption Analysis Pipeline")
     log("=" * 55)
+    log(f"Input dataset: {DATA_FILE}")
 
     if not wait_for_hdfs():
         sys.exit("HDFS never became available.")
@@ -251,7 +254,7 @@ def main():
     mongo_client = pymongo.MongoClient(MONGO_URI)
     db = mongo_client[MONGO_DB]
 
-    if db['pipeline_status'].find_one({'status': 'completed'}):
+    if db['pipeline_status'].find_one({'status': 'completed'}) and not FORCE_RUN:
         log("Pipeline already completed. Nothing to do.")
         return
 
@@ -279,6 +282,7 @@ def main():
             'submetering': (parse_submetering, 'submetering_daily'),
         }
 
+        failed_jobs = []
         for name, mapper, reducer, out_dir in jobs:
             ok = run_job(name, mapper, reducer, out_dir)
             if ok:
@@ -287,7 +291,16 @@ def main():
                 records = parse_fn(raw)
                 store(db, col_name, records)
             else:
+                failed_jobs.append(name)
                 log(f"Skipping MongoDB store for {name} due to job failure.")
+
+        if failed_jobs:
+            db['pipeline_status'].update_one(
+                {'status': 'running'},
+                {'$set': {'status': 'failed', 'failed_jobs': failed_jobs, 'completed_at': time.time()}}
+            )
+            log(f"\nPipeline failed. Jobs failed: {', '.join(failed_jobs)}")
+            sys.exit(1)
 
         db['pipeline_status'].update_one(
             {'status': 'running'},

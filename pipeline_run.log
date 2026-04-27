@@ -1,89 +1,14 @@
-========================================================
-  Real-time Energy Consumption Analysis
-  BDA Mini Project
-========================================================
-Dataset found: 1048576 rows
-
-Pulling Docker images...
-time="2026-04-21T06:57:30+05:30" level=warning msg="/media/davidporathur/Data4/Documents/CRCE/BDA_Mini_project/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
- nodemanager Skipped No image to be pulled
- streamlit Skipped No image to be pulled
- pipeline Skipped No image to be pulled
- Image bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8 Pulling 
- Image bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8 Pulling 
- Image mongo:6.0 Pulling 
- Image bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8 Pulling 
- Image mongo-express:1.0.2-20 Pulling 
- Image bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8 Pulling 
- Image bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8 Pulled 
- Image bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8 Pulled 
- Image bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8 Pulled 
- Image mongo:6.0 Pulled 
- Image mongo-express:1.0.2-20 Pulled 
- Image bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8 Pulled 
-Building pipeline and streamlit images...
-time="2026-04-21T06:57:32+05:30" level=warning msg="/media/davidporathur/Data4/Documents/CRCE/BDA_Mini_project/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
- Image bda_mini_project-streamlit Building 
- Image bda_mini_project-nodemanager Building 
- Image bda_mini_project-pipeline Building 
- Image bda_mini_project-streamlit Built 
- Image bda_mini_project-pipeline Built 
- Image bda_mini_project-nodemanager Built 
-
-Starting all services...
-time="2026-04-21T06:57:35+05:30" level=warning msg="/media/davidporathur/Data4/Documents/CRCE/BDA_Mini_project/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
- Network bda_mini_project_energy-net Creating 
- Network bda_mini_project_energy-net Created 
- Container datanode Creating 
- Container mongodb Creating 
- Container namenode Creating 
- Container nodemanager Creating 
- Container historyserver Creating 
- Container resourcemanager Creating 
- Container historyserver Created 
- Container resourcemanager Created 
- Container namenode Created 
- Container datanode Created 
- Container nodemanager Created 
- Container mongodb Created 
- Container streamlit Creating 
- Container pipeline Creating 
- Container mongo-express Creating 
- Container streamlit Created 
- Container mongo-express Created 
- Container pipeline Created 
- Container resourcemanager Starting 
- Container datanode Starting 
- Container historyserver Starting 
- Container namenode Starting 
- Container nodemanager Starting 
- Container mongodb Starting 
- Container nodemanager Started 
- Container resourcemanager Started 
- Container mongodb Started 
- Container streamlit Starting 
- Container mongo-express Starting 
- Container datanode Started 
- Container namenode Started 
- Container pipeline Starting 
- Container historyserver Started 
- Container mongo-express Started 
- Container streamlit Started 
- Container pipeline Started 
-
-========================================================
-  Services are starting. URLs:
-  ⚡ Streamlit Dashboard  → http://localhost:8501
-  🐘 Hadoop NameNode UI   → http://localhost:9870
-  🧶 YARN ResourceManager → http://localhost:8088
-  📦 Mongo Express        → http://localhost:8081
-     (login: admin / admin123)
-========================================================
-
-Pipeline logs (MapReduce progress):
-  docker logs -f pipeline
-
-To stop everything:
-  docker compose down
-
-Follow pipeline logs now? [y/N] 
+[PIPELINE] =======================================================
+[PIPELINE]   Real-time Energy Consumption Analysis Pipeline
+[PIPELINE] =======================================================
+[PIPELINE] Input dataset: household_power_consumption.csv
+[PIPELINE] Waiting for HDFS NameNode...
+[PIPELINE] HDFS is ready.
+[PIPELINE] Waiting for MongoDB...
+[PIPELINE] MongoDB is ready.
+[PIPELINE] Creating HDFS directories...
+[PIPELINE] Uploading input file to HDFS (/data/household_power_consumption.csv -> /user/energy/input/household_power_consumption.csv)...
+[PIPELINE] Input file uploaded successfully.
+[PIPELINE] Waiting for YARN ResourceManager...
+[PIPELINE] YARN is ready.
+[PIPELINE] Running MapReduce job: Hourly Patterns ...
